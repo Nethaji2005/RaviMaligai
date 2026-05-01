@@ -1,55 +1,103 @@
-# Netlify deployment configuration for Vite React frontend
-# Frontend: React + Vite (located in client/ folder)
-# Backend: https://ravi-maligai.onrender.com
-# This configuration overrides any Netlify UI settings
+###############################################################################
+# NETLIFY DEPLOYMENT CONFIGURATION FOR MERN STACK
+# ============================================================================
+# Project Structure:
+#   - Frontend: client/ (React + Vite)
+#   - Backend: server/ (Node.js) - deployed separately on Render
+#   - This netlify.toml deploys ONLY the frontend
+#
+# Backend URL: https://ravi-maligai.onrender.com
+# This configuration OVERRIDES any Netlify UI settings
+###############################################################################
 
 [build]
-  # Base directory: the root of the frontend project
+  # =========================================================================
+  # CRITICAL: Base directory is where the frontend app is located
+  # This tells Netlify to run all build steps from inside client/
+  # =========================================================================
   base = "client"
   
-  # Build command: runs from the client directory
-  # Vite will use .env.production for VITE_API_URL
+  # =========================================================================
+  # Build command: Run from inside the client/ directory
+  # npm run build = vite build (defined in client/package.json)
+  # Vite will automatically load .env.production for VITE_API_URL
+  # =========================================================================
   command = "npm run build"
   
-  # Publish directory: the optimized dist folder from Vite (relative to base)
-  # This is NOT client/dist - it's dist/ relative to the base directory
+  # =========================================================================
+  # CRITICAL: Publish directory is RELATIVE to the base directory
+  # This means: client/dist/
+  # DO NOT use "client/dist" here - only "dist"
+  # Netlify UI may show it as "client/dist" but that's just the full path
+  # =========================================================================
   publish = "dist"
+  
+  # =========================================================================
+  # Build functions (if using Netlify Functions in the future)
+  # =========================================================================
+  # functions = "netlify/functions"
 
-# Environment variables for the build
 [build.environment]
-  # Node version - ensure compatibility with dependencies
+  # Ensure Node.js version compatibility
   NODE_VERSION = "18"
   
-  # Vite requires NODE_ENV for optimization
+  # CRITICAL: Set NODE_ENV to production for Vite optimization
   NODE_ENV = "production"
+  
+  # Optional: Disable telemetry for faster builds
+  DISABLE_TELEMETRY = "true"
 
-# Redirects for single-page application (SPA)
-# This ensures all routes are served by index.html for React Router
+###############################################################################
+# FRONTEND BUILD LOGS & CONFIGURATION
+###############################################################################
+[build.processing]
+  # Skip unnecessary processing
+  skip_processing = false
+
+###############################################################################
+# SPA ROUTING CONFIGURATION FOR REACT ROUTER
+# ============================================================================
+# This ensures React Router works correctly by serving index.html
+# for all non-file requests, allowing client-side routing to work
+###############################################################################
 [[redirects]]
+  # Match any path that doesn't have a file extension
+  # This regex means: "any path that doesn't end with a file extension"
   from = "/*"
   to = "/index.html"
   status = 200
+  # force = false  # Don't force redirect if file exists
 
-# Custom headers for security and API configuration
+###############################################################################
+# SECURITY & PERFORMANCE HEADERS
+###############################################################################
+
+# Default headers for all routes
 [[headers]]
   for = "/*"
   [headers.values]
-    # Allow cross-origin requests if needed for API calls
+    # Allow cross-origin API requests to Render backend
     Access-Control-Allow-Origin = "*"
-    # Cache control for static assets
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    
+    # Security headers
     X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "no-referrer-when-downgrade"
 
-# Cache settings for static assets
+# Cache optimization for static assets (built by Vite with content hashes)
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    # Cache static assets for 1 year (they have content hashes)
+    # Cache static assets for 1 year (safe because files have content hashes)
     Cache-Control = "public, max-age=31536000, immutable"
 
+# Never cache the main HTML file to always get the latest version
 [[headers]]
   for = "/index.html"
   [headers.values]
-    # Don't cache the HTML file to always get latest version
+    # Validate with server on every request
     Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "text/html; charset=utf-8"
