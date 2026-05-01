@@ -4,6 +4,9 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const BASE_URL = `${API_URL}/api`;
 
+console.log(`🔗 API Base URL: ${BASE_URL}`);
+console.log(`🔗 Full API URL: ${API_URL}`);
+
 // Create axios instance with base URL
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -11,21 +14,66 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Include cookies if using sessions
+  timeout: 10000, // 10 second timeout
 });
 
-// Error handler utility
+// Add request interceptor for debugging
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`📤 API Request: ${config.method.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`📥 API Response: ${response.status} from ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    console.error('❌ Response Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Error handler utility with detailed logging
 const handleError = (error) => {
   if (error.response) {
     // Server responded with error status
-    console.error('API Error:', error.response.status, error.response.data);
-    throw new Error(error.response.data?.error || error.response.statusText || 'API request failed');
+    console.error('❌ API Error:', {
+      status: error.response.status,
+      statusText: error.response.statusText,
+      data: error.response.data,
+      url: error.response.config?.url,
+    });
+    throw new Error(
+      error.response.data?.error ||
+      error.response.data?.message ||
+      `Server Error (${error.response.status}): ${error.response.statusText}`
+    );
   } else if (error.request) {
-    // Request made but no response received
-    console.error('Network Error:', error.request);
-    throw new Error('Network error. Please check your connection.');
+    // Request made but no response received (network error)
+    console.error('❌ Network Error:', {
+      message: error.message,
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      timeout: error.config?.timeout,
+    });
+    console.error('⚠️ Troubleshooting:');
+    console.error(`   1. Is backend running on ${API_URL}?`);
+    console.error(`   2. Check CORS configuration on backend`);
+    console.error(`   3. Check browser console for more details`);
+    throw new Error(
+      `Cannot connect to backend at ${API_URL}. Please ensure the backend server is running.`
+    );
   } else {
     // Other errors
-    console.error('Error:', error.message);
+    console.error('❌ Error:', error.message);
     throw error;
   }
 };

@@ -18,7 +18,30 @@ const salesRoutes = require("./routes/sales");
 const app = express();
 
 // ================= MIDDLEWARE =================
-app.use(cors());
+// Configure CORS properly for frontend
+const corsOptions = {
+  origin: function (origin, callback) {
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173', // Vite default dev port
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      process.env.FRONTEND_URL, // Production frontend URL
+    ].filter(Boolean); // Remove undefined values
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Allow cookies and credentials
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // ================= ROOT ROUTE =================
@@ -38,7 +61,25 @@ app.use("/api/sales", salesRoutes);
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: {
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+        process.env.FRONTEND_URL,
+      ].filter(Boolean);
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'], // Fallback for environments that don't support websockets
 });
 
 io.on("connection", (socket) => {
@@ -81,8 +122,33 @@ if (require("fs").existsSync(clientPath)) {
 }
 
 // ================= SERVER START =================
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
+  console.log('');
+  console.log('═══════════════════════════════════════════════════');
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Backend URL: http://localhost:${PORT}`);
+  console.log(`📡 API Endpoints: http://localhost:${PORT}/api/*`);
+  console.log('═══════════════════════════════════════════════════');
+  console.log('');
+  console.log('✅ Environment:');
+  console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   PORT: ${PORT}`);
+  if (process.env.FRONTEND_URL) {
+    console.log(`   FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+  }
+  console.log('');
+  console.log('✅ CORS Allowed Origins:');
+  console.log('   - http://localhost:3000');
+  console.log('   - http://localhost:5173');
+  console.log('   - http://127.0.0.1:3000');
+  console.log('   - http://127.0.0.1:5173');
+  if (process.env.FRONTEND_URL) {
+    console.log(`   - ${process.env.FRONTEND_URL}`);
+  }
+  console.log('');
+  console.log('🧪 Test Backend:');
+  console.log(`   curl http://localhost:${PORT}`);
+  console.log('');
 });
